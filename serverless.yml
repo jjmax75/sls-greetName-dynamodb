@@ -1,0 +1,66 @@
+service: assignment2-names
+frameworkVersion: '2'
+
+custom:
+  settings:
+    NAMES_DYNAMODB_TABLE: greetNames
+    NAMES_INDEX_NAME: NamesGSI
+
+provider:
+  name: aws
+  region: eu-west-1
+  runtime: nodejs12.x
+  environment: ${self:custom.settings}
+  lambdaHashingVersion: 20201221
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:Query
+      Resource:
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.settings.NAMES_DYNAMODB_TABLE}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.settings.NAMES_DYNAMODB_TABLE}/index/*"
+
+functions:
+  hello:
+    handler: handler.hello
+    events:
+      - http:
+          method: get
+          path: /hello
+  wasGreeted:
+    handler: handler.wasGreeted
+    events:
+      - http:
+          method: get
+          path: /wasGreeted
+
+resources:
+ Resources:
+   ImagesTable:
+     Type: AWS::DynamoDB::Table
+     Properties:
+      AttributeDefinitions:
+      - AttributeName: "itemId"
+        AttributeType: "S"
+      - AttributeName: firstName
+        AttributeType: S
+      KeySchema:
+      - AttributeName: "itemId"
+        KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      TableName: ${self:custom.settings.NAMES_DYNAMODB_TABLE}
+      GlobalSecondaryIndexes:
+      - IndexName: ${self:custom.settings.NAMES_INDEX_NAME}
+        KeySchema:
+        - AttributeName: firstName
+          KeyType: HASH
+        Projection:
+            NonKeyAttributes:
+            - itemId
+            ProjectionType: INCLUDE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
